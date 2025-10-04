@@ -1,23 +1,86 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { assets } from '../assets/assets'
 import { AppContext } from '../context/AppContext'
+import axios from 'axios'
+import  {useNavigate} from 'react-router-dom'
+import { toast } from 'react-toastify'
 
 const RecruiterLogin = () => {
 
+  const navigate= useNavigate()
     const [state,setState] =useState('Login')
     const [name,setName] = useState('')
     const [email,setEmail] =useState('')
     const [password,setPassword] = useState('')
     const [image,setImage] = useState(false)
     const [isTextDataSubmitted,setIsTextDataSubmitted] =useState(false)
-    const {setShowRecruiterLogin} = useContext( AppContext )
+    const {setShowRecruiterLogin,backendUrl,setCompanyToken,setCompanyData} = useContext( AppContext )
 
-    const onSubmitHandler =async (e)=>{
-        e.preventDefault()
-        if (state=== "Sign Up" && !isTextDataSubmitted ) {
-            setIsTextDataSubmitted(true)
-        }
+const onSubmitHandler = async (e) => {
+  e.preventDefault();
+
+  // Step 1: In Sign Up flow → show logo upload step first
+  if (state === "Sign Up" && !isTextDataSubmitted) {
+    setIsTextDataSubmitted(true);
+    return;
+  }
+
+  try {
+    if (state === "Login") {
+      // ------------------ LOGIN ------------------
+      const { data } = await axios.post(
+        backendUrl + "/api/v1/company/login",
+        { email, password }
+      );
+
+      if (data.success) {
+        // ✅ Successful login
+        setCompanyData(data.company);
+        setCompanyToken(data.token);
+        localStorage.setItem("companyToken", data.token);
+        setShowRecruiterLogin(false);
+        navigate("/dashboard");
+        toast.success("Login successful ✅");
+      }
+    } else {
+      // ------------------ SIGN UP ------------------
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("password", password);
+      formData.append("email", email);
+      formData.append("image", image);
+
+      const { data } = await axios.post(
+        backendUrl + "/api/v1/company/register",
+        formData
+      );
+
+      if (data.success) {
+        // ✅ Successful registration
+        setCompanyData(data.company);
+        setCompanyToken(data.token);
+        localStorage.setItem("companyToken", data.token);
+        setShowRecruiterLogin(false);
+        navigate("/dashboard");
+        toast.success("Account created successfully 🎉");
+      }
     }
+  } catch (error) {
+    // ------------------ ERROR HANDLING ------------------
+    console.error(error);
+
+    if (error.response) {
+      // Backend returned an error (e.g., 400/401/500)
+      toast.error(error.response.data?.message || "Invalid email or password");
+    } else if (error.request) {
+      // No response from server
+      toast.error("No response from server. Please try again.");
+    } else {
+      // Other unexpected error
+      toast.error("Something went wrong. Please try again.");
+    }
+  }
+};
 
     useEffect(()=>{
        document.body.style.overflow= 'hidden'
