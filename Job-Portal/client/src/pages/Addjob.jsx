@@ -13,6 +13,15 @@ const Addjob = () => {
    const editorRef= useRef(null)
    const quillRef= useRef(null)
 
+  //  const onSubmitHandler=async(e)=>{
+  //   e.preventDefault()
+  //   try {
+      
+  //   } catch (error) {
+      
+  //   }
+  //  }
+
   useEffect(()=>{
     //initiate Quill only once
    if(! quillRef. current && editorRef.current){

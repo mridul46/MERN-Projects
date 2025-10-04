@@ -15,7 +15,7 @@ export const protectCompany = asyncHandler(async (req, res, next) => {
   try {
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-    const company = await Company.findById(decodedToken._id).select("-password");
+    const company = await Company.findById(decodedToken._id|| decodedToken.id).select("-password");
     if (!company) {
       throw new ApiError(401, "Invalid access token");
     }

@@ -16,10 +16,9 @@ const RecruiterLogin = () => {
     const [isTextDataSubmitted,setIsTextDataSubmitted] =useState(false)
     const {setShowRecruiterLogin,backendUrl,setCompanyToken,setCompanyData} = useContext( AppContext )
 
-const onSubmitHandler = async (e) => {
+  const onSubmitHandler = async (e) => {
   e.preventDefault();
 
-  // Step 1: In Sign Up flow → show logo upload step first
   if (state === "Sign Up" && !isTextDataSubmitted) {
     setIsTextDataSubmitted(true);
     return;
@@ -27,60 +26,75 @@ const onSubmitHandler = async (e) => {
 
   try {
     if (state === "Login") {
-      // ------------------ LOGIN ------------------
-      const { data } = await axios.post(
-        backendUrl + "/api/v1/company/login",
-        { email, password }
-      );
+      // ----------- LOGIN -----------
+      const { data } = await axios.post(`${backendUrl}/api/v1/company/login`, {
+        email,
+        password,
+      });
 
       if (data.success) {
-        // ✅ Successful login
-        setCompanyData(data.company);
-        setCompanyToken(data.token);
-        localStorage.setItem("companyToken", data.token);
+        console.log("Login Response:", data);
+
+        const company = data.data?.company || data.company; // ✅ handle both structures
+        const token = company?.token;
+
+        if (!token) {
+          toast.error("Token missing in response");
+          return;
+        }
+
+        setCompanyData(company);
+        setCompanyToken(token);
+        localStorage.setItem("companyToken", token);
+
         setShowRecruiterLogin(false);
         navigate("/dashboard");
-        toast.success("Login successful ✅");
+        toast.success("Login successful");
+      } else {
+        toast.error(data.message || "Invalid email or password");
       }
     } else {
-      // ------------------ SIGN UP ------------------
+      // ----------- REGISTER -----------
       const formData = new FormData();
       formData.append("name", name);
-      formData.append("password", password);
       formData.append("email", email);
+      formData.append("password", password);
       formData.append("image", image);
 
       const { data } = await axios.post(
-        backendUrl + "/api/v1/company/register",
+        `${backendUrl}/api/v1/company/register`,
         formData
       );
 
       if (data.success) {
-        // ✅ Successful registration
-        setCompanyData(data.company);
-        setCompanyToken(data.token);
-        localStorage.setItem("companyToken", data.token);
+        console.log("Register Response:", data);
+
+        const company = data.data?.company || data.company; // ✅ handle both structures
+        const token = company?.token;
+
+        if (!token) {
+          toast.error("Token missing in response");
+          return;
+        }
+
+        setCompanyData(company);
+        setCompanyToken(token);
+        localStorage.setItem("companyToken", token);
+
         setShowRecruiterLogin(false);
         navigate("/dashboard");
-        toast.success("Account created successfully 🎉");
+        toast.success("Account created successfully");
+      } else {
+        toast.error(data.message || "Registration failed");
       }
     }
   } catch (error) {
-    // ------------------ ERROR HANDLING ------------------
-    console.error(error);
-
-    if (error.response) {
-      // Backend returned an error (e.g., 400/401/500)
-      toast.error(error.response.data?.message || "Invalid email or password");
-    } else if (error.request) {
-      // No response from server
-      toast.error("No response from server. Please try again.");
-    } else {
-      // Other unexpected error
-      toast.error("Something went wrong. Please try again.");
-    }
+    console.error("Error during submit:", error);
+    toast.error(error.response?.data?.message || "Something went wrong");
   }
 };
+
+
 
     useEffect(()=>{
        document.body.style.overflow= 'hidden'
