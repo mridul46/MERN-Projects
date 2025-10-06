@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import Quill from 'quill'
 import { JobCategories, JobLocations } from '../assets/assets'
-
+import { AppContext } from '../context/AppContext'
+import axios from 'axios'
+import { toast } from 'react-toastify'
 const Addjob = () => {
 
    const [title,setTitle] = useState('')
@@ -12,15 +14,47 @@ const Addjob = () => {
 
    const editorRef= useRef(null)
    const quillRef= useRef(null)
+   
 
-  //  const onSubmitHandler=async(e)=>{
-  //   e.preventDefault()
-  //   try {
-      
-  //   } catch (error) {
-      
-  //   }
-  //  }
+   const {backendUrl,companyToken}=useContext(AppContext )
+   const onSubmitHandler = async (e) => {
+  e.preventDefault();
+
+  try {
+    const description = quillRef.current.root.innerHTML;
+
+    // ✅ Get token from state or localStorage
+    const token = companyToken || localStorage.getItem("companyToken");
+
+    if (!token) {
+      toast.error("Authentication token missing. Please log in again.");
+      return;
+    }
+
+    const { data } = await axios.post(
+      `${backendUrl}/api/v1/company/post-job`,
+      { title, description, location, salary, category, level },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // ✅ Use standard Bearer format
+        },
+      }
+    );
+
+    if (data.success) {
+      toast.success(data.message || "Job created successfully");
+      setTitle("");
+      setSalary(0);
+      quillRef.current.root.innerHTML = "";
+    } else {
+      toast.error(data.message || "Job creation failed");
+    }
+  } catch (error) {
+    console.error("Error posting job:", error);
+    toast.error(error.response?.data?.message || "Something went wrong");
+  }
+};
+
 
   useEffect(()=>{
     //initiate Quill only once
@@ -33,7 +67,7 @@ const Addjob = () => {
 
   return (
    
-    <form className='container p-4 flex flex-col w-full items-start gap-3'>
+    <form onSubmit={onSubmitHandler} className='container p-4 flex flex-col w-full items-start gap-3'>
          <div className='w-full'>
             <p className='mb-2'>Job Title</p>
             <input type="text" placeholder='Type here'
