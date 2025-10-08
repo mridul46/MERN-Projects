@@ -1,79 +1,120 @@
 import { createContext, useEffect, useState } from "react";
-import { jobsData } from "../assets/assets";
-import {toast} from 'react-toastify'
 import axios from "axios";
-export const AppContext= createContext()
+import { toast } from "react-toastify";
+import { useAuth, useUser } from "@clerk/clerk-react";
 
-export const AppContextProvider =(props)=>{
-    const backendUrl= import.meta.env.VITE_BACKEND_URL
+// Create Context
+export const AppContext = createContext();
 
-    const [searchFilter,setSearchFilter]= useState(
-        {
-            title:'',
-            location:'',
-        }
-    );
+export const AppContextProvider = ({ children }) => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const { user } = useUser();
+  const { getToken } = useAuth();
 
+  // --- States ---
+  const [searchFilter, setSearchFilter] = useState({ title: "", location: "" });
+  const [isSearched, setIsSearched] = useState(false);
+  const [jobs, setJobs] = useState([]);
+  const [showRecruiterLogin, setShowRecruiterLogin] = useState(false);
+  const [companyToken, setCompanyToken] = useState(localStorage.getItem("companyToken"));
+  const [companyData, setCompanyData] = useState(
+    JSON.parse(localStorage.getItem("companyData")) || null
+  );
 
-    const [isSearched,setIsSearched]=useState(false)
-    
+  // --- Store token and company data in localStorage ---
+  const saveCompanyToken = (token) => {
+    localStorage.setItem("companyToken", token);
+    setCompanyToken(token);
+  };
 
-    const [jobs,setJobs]= useState([])
+  const removeCompanyToken = () => {
+    localStorage.removeItem("companyToken");
+    setCompanyToken(null);
+  };
 
-    const [showRecruiterLogin,setShowRecruiterLogin] =useState(false)
-    const[companyToken,setCompanyToken]= useState(null)
-     const[companyData,setCompanyData]= useState(null)
-    
-    
+  const saveCompanyData = (data) => {
+    localStorage.setItem("companyData", JSON.stringify(data));
+    setCompanyData(data);
+  };
 
+  const removeCompanyData = () => {
+    localStorage.removeItem("companyData");
+    setCompanyData(null);
+  };
 
-    //Function to fetch
-    const fetchJobs=async()=>{
-          setJobs(jobsData)
+  // --- Fetch all jobs ---
+  const fetchJobs = async () => {
+    try {
+      const response = await axios.get(`${backendUrl}/api/v1/jobs`);
+      if (response.data.success) {
+        setJobs(response.data.data.jobs);
+      } else {
+        toast.error(response.data.message || "Failed to get jobs");
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to get jobs");
     }
+  };
 
-    //Function to fetch company data
-    const fetchCompanyData=async()=>{
-        try {
-            const {data}=await axios.get(backendUrl+'/api/v1/comapany/company',
-                {headers:{token:companyToken}} )
-            if(data.success){
-                setCompanyData(data.message)
-                console.log(data);
-                
-            } else{
-                toast.error(data.message)
-            }
-        } catch (error) {
-             toast.error(error.message)
-        }
+  // --- Fetch company data ---
+  const fetchCompanyData = async () => {
+    if (!companyToken) return;
+
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/v1/company/company`, {
+        headers: { Authorization: `Bearer ${companyToken}` },
+      });
+
+      if (data.success) {
+        const company = data.company || data.data?.company;
+        saveCompanyData(company); // store in state + localStorage
+      } else {
+        toast.error(data.message || "Failed to fetch company data");
+        removeCompanyToken();
+        removeCompanyData();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
+      removeCompanyToken();
+      removeCompanyData();
     }
-    
-    useEffect(()=>{
-        if(companyToken){
-            fetchCompanyData
-        }
-    },[companyToken])
+  };
 
+  // --- Logout function ---
+  const logout = () => {
+    removeCompanyToken();
+    removeCompanyData();
+    window.location.href = "/"; // redirect to home
+  };
 
-    useEffect(()=>{
-        fetchJobs()
-        const storedCompanyToken= localStorage.getItem('companyToken')
-        if(storedCompanyToken){
-            setCompanyToken(storedCompanyToken)
-        }
-    },[])
-    const value ={
-       searchFilter,setSearchFilter,
-       isSearched,setIsSearched,
-       jobs,setJobs,
-       showRecruiterLogin,setShowRecruiterLogin,
-       companyToken,setCompanyToken,
-       companyData,setCompanyData,
-       backendUrl
-    }
-    return (<AppContext.Provider value={value}>
-        {props.children}
-    </AppContext.Provider>)
-}
+  // --- Fetch company data when token changes ---
+  useEffect(() => {
+    fetchCompanyData();
+  }, [companyToken]);
+
+  // --- On first load, fetch jobs ---
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  // --- Context value ---
+  const value = {
+    searchFilter,
+    setSearchFilter,
+    isSearched,
+    setIsSearched,
+    jobs,
+    setJobs,
+    showRecruiterLogin,
+    setShowRecruiterLogin,
+    companyToken,
+    setCompanyToken: saveCompanyToken,
+    companyData,
+    setCompanyData: saveCompanyData,
+    backendUrl,
+    logout,
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
 

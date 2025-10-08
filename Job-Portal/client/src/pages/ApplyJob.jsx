@@ -9,28 +9,35 @@ import kconvert from  'k-convert'
 import moment from 'moment'
 import JobCard from '../components/JobCard'
 import Footer from '../components/Footer'
-
+import { toast } from 'react-toastify'
+import axios from 'axios'
 const ApplyJob = () => {
 
   const {id} =useParams()
 
   const [JobData, setJobData]= useState(null)
 
-  const {jobs}= useContext(AppContext)
+  const {jobs,backendUrl}= useContext(AppContext)
 
-  const fetchJob =async()=>{
-    const data=jobs.filter(job=>job._id===id)
-    if(data.length !==0){
-      setJobData(data[0])
-      console.log(data[0])
+const fetchJob = async () => {
+  try {
+    const response = await axios.get(`${backendUrl}/api/v1/jobs/${id}`);
+    console.log("Response from backend:", response.data); // For debugging
+
+    if (response.data.success) {
+      // Correct path to the job object
+      setJobData(response.data.data.job); 
+    } else {
+      toast.error(response.data.message || "Failed to fetch job");
     }
+  } catch (error) {
+    toast.error(error.message || "Failed to fetch job");
   }
+};
 
   useEffect(()=>{
-    if(jobs.length >0){
-      fetchJob()
-    }
-  },[id,jobs])
+    fetchJob()
+  },[id])
 
 
 

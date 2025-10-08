@@ -6,6 +6,7 @@ import bcrypt from "bcrypt"
 import generateToken from "../utils/generateToken.js";
 import cloudinary from 'cloudinary'
 import { Job } from "../models/Job.models.js";
+import { JobApplication } from "../models/jobApplication.model.js";
 //Register a new company
 const registerCompany = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;   // text fields
@@ -28,7 +29,7 @@ const registerCompany = asyncHandler(async (req, res) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(password, salt);
+    const hashPassword = await bcrypt.hash(password, salt)  ;
 
     // Cloudinary upload
     const imageUpload = await cloudinary.uploader.upload(imageFile.path);
@@ -135,12 +136,16 @@ const getCompanyJobApplicants= asyncHandler(async(req,res)=>{
 const getCompanyPostedJobs = asyncHandler(async(req,res)=>{
        const companyId= req.company._id
        const jobs= await Job.find({companyId})
-       //TODO - adding No. of applicants info in data
+       // adding No. of applicants info in data
+       const jobsData= await Promise.all(jobs.map(async(job)=>{
+        const applicants= await JobApplication.find({jobId: job._id});
+        return {...job.toObject(),applicants:applicants.length}
+       }))
        return res.status(201)
        .json(
         new ApiResponse(
             201,
-            {jobs},
+            {jobsData},
             "get company posted job successfully"
         )
        )
