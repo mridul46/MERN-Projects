@@ -3,7 +3,6 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { useAuth, useUser } from "@clerk/clerk-react";
 
-// Create Context
 export const AppContext = createContext();
 
 export const AppContextProvider = ({ children }) => {
@@ -11,7 +10,6 @@ export const AppContextProvider = ({ children }) => {
   const { user } = useUser();
   const { getToken } = useAuth();
 
-  // --- States ---
   const [searchFilter, setSearchFilter] = useState({ title: "", location: "" });
   const [isSearched, setIsSearched] = useState(false);
   const [jobs, setJobs] = useState([]);
@@ -20,8 +18,9 @@ export const AppContextProvider = ({ children }) => {
   const [companyData, setCompanyData] = useState(
     JSON.parse(localStorage.getItem("companyData")) || null
   );
+  const [userData, setUserData] = useState(null);
+  const [userApplications, setUserApplications] = useState([]);
 
-  // --- Store token and company data in localStorage ---
   const saveCompanyToken = (token) => {
     localStorage.setItem("companyToken", token);
     setCompanyToken(token);
@@ -42,7 +41,6 @@ export const AppContextProvider = ({ children }) => {
     setCompanyData(null);
   };
 
-  // --- Fetch all jobs ---
   const fetchJobs = async () => {
     try {
       const response = await axios.get(`${backendUrl}/api/v1/jobs`);
@@ -56,7 +54,6 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-  // --- Fetch company data ---
   const fetchCompanyData = async () => {
     if (!companyToken) return;
 
@@ -67,7 +64,7 @@ export const AppContextProvider = ({ children }) => {
 
       if (data.success) {
         const company = data.company || data.data?.company;
-        saveCompanyData(company); // store in state + localStorage
+        saveCompanyData(company);
       } else {
         toast.error(data.message || "Failed to fetch company data");
         removeCompanyToken();
@@ -80,24 +77,42 @@ export const AppContextProvider = ({ children }) => {
     }
   };
 
-  // --- Logout function ---
   const logout = () => {
     removeCompanyToken();
     removeCompanyData();
-    window.location.href = "/"; // redirect to home
+    window.location.href = "/";
   };
 
-  // --- Fetch company data when token changes ---
+  const fetchUserData = async () => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.get(`${backendUrl}/api/v1/users/user`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (data.success) {
+        setUserData(data.data?.user || data.user);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   useEffect(() => {
     fetchCompanyData();
   }, [companyToken]);
 
-  // --- On first load, fetch jobs ---
   useEffect(() => {
     fetchJobs();
   }, []);
 
-  // --- Context value ---
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
+
   const value = {
     searchFilter,
     setSearchFilter,
@@ -111,6 +126,10 @@ export const AppContextProvider = ({ children }) => {
     setCompanyToken: saveCompanyToken,
     companyData,
     setCompanyData: saveCompanyData,
+    userData,
+    setUserData,
+    userApplications,
+    setUserApplications,
     backendUrl,
     logout,
   };
