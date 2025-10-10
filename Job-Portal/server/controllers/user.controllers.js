@@ -9,38 +9,37 @@ import { Clerk } from "@clerk/clerk-sdk-node";
 
 const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
-// --- Helper: Get or create user ---
 const getOrCreateUser = async (userId) => {
   const cUser = await clerk.users.getUser(userId);
 
-  // Use Clerk's email if available, otherwise fallback
+  // Extract email
   const email =
-    cUser.email_addresses?.length > 0 && cUser.email_addresses[0].email_address
-      ? cUser.email_addresses[0].email_address
-      : `no-email-${userId}@example.com`;
+    cUser.emailAddresses?.[0]?.emailAddress ||
+    `no-email-${userId}@example.com`;
 
-  // Use Clerk's full name
-  const name = cUser.name || "Unknown User";
+  // Combine Clerk's first and last name
+  const name = [cUser.firstName, cUser.lastName].filter(Boolean).join(" ") || "Unknown User";
 
-  // Use Clerk image or placeholder
-  const image = cUser.image_url || "https://via.placeholder.com/150";
+  // Use Clerk profile image or placeholder
+  const image = cUser.imageUrl || "https://via.placeholder.com/150";
 
+  // Check for existing user in MongoDB
   let user = await User.findOne({ clerkId: userId });
 
   if (!user) {
-    // Create new user
+    // 🆕 Create a new user
     user = await User.create({
-      _id: cUser.id,
       clerkId: cUser.id,
       email,
       name,
       image,
-      resume: "",
+      resume: "", // default empty until uploaded
     });
-    console.log("Created new user in MongoDB:", user.email);
+    console.log("✅ Created new user:", user.email);
   } else {
-    // Update existing user if info changed
+    // 🔄 Update existing user if necessary
     let updated = false;
+
     if (user.email !== email) {
       user.email = email;
       updated = true;
@@ -53,14 +52,22 @@ const getOrCreateUser = async (userId) => {
       user.image = image;
       updated = true;
     }
+
+    // Preserve resume — don't overwrite if already present
+    if (!user.resume) {
+      user.resume = "";
+      updated = true;
+    }
+
     if (updated) {
       await user.save();
-      console.log("Updated existing user in MongoDB:", user.email);
+      console.log("🔁 Updated existing user:", user.email);
     }
   }
 
   return user;
 };
+
 
 // --- Get user data ---
 const getUserData = asyncHandler(async (req, res) => {
@@ -106,19 +113,38 @@ const getUserJobApplications = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { applications }, "Applications fetched successfully"));
 });
 
-// --- Update user resume ---
+// --- Update User Resume ---
 const updateUserResume = asyncHandler(async (req, res) => {
-  const { userId } = req.auth();
-  const user = await getOrCreateUser(userId);
-  const resumeFile = req.file;
+  const clerkId = req.auth?.userId;
 
-  if (resumeFile) {
-    const uploadRes = await cloudinary.uploader.upload(resumeFile.path, { resource_type: "auto" });
-    user.resume = uploadRes.secure_url;
-  }
+  if (!clerkId) return res.status(401).json({ success: false, message: "Unauthorized" });
+  if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
 
-  await user.save();
-  return res.status(200).json(new ApiResponse(200, { user }, "Resume updated successfully"));
+  // Upload to Cloudinary
+  const uploadResult = await new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: "auto", folder: `resumes/${clerkId}` },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    stream.end(req.file.buffer);
+  });
+
+  // Update user in DB
+  const user = await User.findOneAndUpdate(
+    { clerkId },
+    { resume: uploadResult.secure_url },
+    { new: true }
+  );
+
+  return res.status(200).json({
+    success: true,
+    message: "Resume updated successfully",
+    data: user,
+  });
 });
+
 
 export { getUserData, applyForJob, getUserJobApplications, updateUserResume };

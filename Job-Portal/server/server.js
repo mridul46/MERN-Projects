@@ -28,6 +28,11 @@ app.get("/debug-sentry", function mainHandler(req, res) {
   throw new Error("My first Sentry error!");
 });
 
+app.use(cors({
+  origin: ["http://localhost:5173"], // or your frontend URL
+  credentials: true
+}));
+
 //Routes
 app.get('/',(req,res)=>
   res.send("Api is working")

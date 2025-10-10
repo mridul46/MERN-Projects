@@ -6,7 +6,7 @@ import { useAuth, useUser } from "@clerk/clerk-react";
 export const AppContext = createContext();
 
 export const AppContextProvider = ({ children }) => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL ||  "http://localhost:5000";;
   const { user } = useUser();
   const { getToken } = useAuth();
 
@@ -98,6 +98,24 @@ export const AppContextProvider = ({ children }) => {
       toast.error(error.message);
     }
   };
+  //Function to fetch users applired application data
+  const fetchUserApplications = async () => {
+  try {
+    const token = await getToken();
+    const { data } = await axios.get(`${backendUrl}/api/v1/users/applications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (data.success) {
+      // Access applications from data.data.applications
+      setUserApplications(data.data.applications);
+    } else {
+      toast.error(data.message || "Failed to fetch applications");
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || error.message || "Something went wrong");
+  }
+};
 
   useEffect(() => {
     fetchCompanyData();
@@ -110,6 +128,7 @@ export const AppContextProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       fetchUserData();
+      fetchUserApplications()
     }
   }, [user]);
 
@@ -132,6 +151,8 @@ export const AppContextProvider = ({ children }) => {
     setUserApplications,
     backendUrl,
     logout,
+    fetchUserData,
+    fetchUserApplications,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

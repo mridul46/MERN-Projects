@@ -130,7 +130,20 @@ const getCompanyData=asyncHandler(async(req,res)=>{
 
 //Get Comapny job applicants
 const getCompanyJobApplicants= asyncHandler(async(req,res)=>{
-
+    const companyId= req.company._id
+    //Find job applications for the user and populate related data
+    const applications= await JobApplication.find({companyId})
+    .populate('userId','name image resume')
+    .populate('jobId','title location category level salary')
+    .exec()
+    return res.status(200)
+    .json(
+      new ApiResponse(
+        200,
+        {applications},
+        "get company job applicants successfully"
+      )
+    )
 });
 //Get CompanyPosted Jobs
 const getCompanyPostedJobs = asyncHandler(async(req,res)=>{
@@ -151,8 +164,33 @@ const getCompanyPostedJobs = asyncHandler(async(req,res)=>{
        )
 });
 //Change Job Application Status
-const changeApplicationsStatus= asyncHandler(async(req,res)=>{
+const changeApplicationsStatus = asyncHandler(async (req, res) => {
+  const { applicationId, status } = req.body;
 
+  // Validate input
+  if (!applicationId || !status) {
+    throw new ApiError(400, "Application ID and status are required");
+  }
+
+  // Validate status value
+  const validStatuses = ["Pending", "Accepted", "Rejected"];
+  if (!validStatuses.includes(status)) {
+    throw new ApiError(400, "Invalid status value");
+  }
+
+  // Find the application
+  const application = await JobApplication.findById(applicationId);
+  if (!application) {
+    throw new ApiError(404, "Application not found");
+  }
+
+  // Update status
+  application.status = status;
+  await application.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, { application }, `Application status updated to ${status}`)
+  );
 });
 //Change job visiablity
 const changeVisiblity = asyncHandler(async (req, res) => {

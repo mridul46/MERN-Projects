@@ -13,6 +13,12 @@ const router = Router();
 router.get("/user", requireAuth(), getUserData);
 router.post("/apply", requireAuth(), applyForJob);
 router.get("/applications", requireAuth(), getUserJobApplications);
-router.post("/update-resume", requireAuth(), upload.single("resume"), updateUserResume);
+router.post(
+  "/update-resume",
+  requireAuth(),
+  upload.single("resume"),
+  updateUserResume
+);
+
 
 export default router;
