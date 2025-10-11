@@ -92,7 +92,9 @@ const applyHandler = async () => {
     const hasApplied= userApplications.some(item=> item.jobId._id === JobData._id)
     setIsAlreadyApplied(hasApplied)
   }
-
+  const convertToLakh = (salary) => {
+    return (salary / 100000).toFixed(2) + ' L';
+  };
   useEffect(()=>{
     fetchJob()
   },[id])
@@ -127,7 +129,7 @@ const applyHandler = async () => {
                       </span>  
                       <span className='flex items-center gap-1'>
                         <img src={assets.money_icon} alt="" />
-                         CTC: {kconvert.convertTo(JobData.salary)}
+                        CTC: {convertToLakh(JobData.salary)}
                       </span>                      
                     </div>
                   </div>
