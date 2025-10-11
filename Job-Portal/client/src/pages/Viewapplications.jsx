@@ -54,9 +54,9 @@ const Viewapplications = () => {
 
   if (applicants.length === 0)
     return (
-      <div className="flex justify-center items-center h-64 text-gray-500 text-lg">
-        No applicants found.
-      </div>
+      <div  className="flex items-center justify-center h-[70vh]">
+       <p className="text-xl sm:text-2xl">No Applications Available  </p>
+       </div>
     );
 
   return (

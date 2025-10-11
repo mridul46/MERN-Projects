@@ -4,54 +4,66 @@ import { ApiResponse } from "../utils/api-response.js"
 import  {asyncHandler}  from "../utils/async-handler.js";
 import bcrypt from "bcrypt"
 import generateToken from "../utils/generateToken.js";
-import cloudinary from 'cloudinary'
+import {v2 as cloudinary}  from 'cloudinary'
 import { Job } from "../models/Job.models.js";
 import { JobApplication } from "../models/jobApplication.model.js";
 //Register a new company
+// ----------------- REGISTER COMPANY -----------------
 const registerCompany = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body;   // text fields
-    const imageFile = req.file;                   // file
-     console.log(req.body); 
-    
-    if (!name || !email || !password || !imageFile) {
-        return res.status(400).json(
-            new ApiResponse(
-                400,
-                null,
-                "Missing Details"
-            )
-        );
+    const { name, email, password } = req.body;
+    const imageFile = req.file;
+
+    // Validate required text fields
+    if (!name || !email || !password) {
+        return res.status(400).json(new ApiResponse(400, null, "Missing required fields"));
     }
 
+    // Check if company already exists
     const companyExists = await Company.findOne({ email });
     if (companyExists) {
-        throw new ApiError(409, "Company already registered");
+        return res.status(409).json(new ApiResponse(409, null, "Company already registered"));
     }
 
+    // Hash password
     const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(password, salt)  ;
+    const hashPassword = await bcrypt.hash(password, salt);
 
-    // Cloudinary upload
-    const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+    // Handle image upload (optional)
+    let imageUrl = "";
+    if (imageFile) {
+        try {
+            const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+            imageUrl = imageUpload.secure_url;
+        } catch (err) {
+            console.error("Cloudinary upload failed:", err);
+            return res.status(500).json(new ApiResponse(500, null, "Image upload failed"));
+        }
+    }
 
+    // Create company
     const company = await Company.create({
         name,
         email,
         password: hashPassword,
-        image: imageUpload.secure_url
+        image: imageUrl
     });
+
+    // Generate token
+    const token = generateToken(company._id);
+
+    // Send response with token inside company object
+    const companyData = { ...company.toObject(), token };
 
     return res.status(201).json(
         new ApiResponse(
             201,
-            {
-                company,
-                token: generateToken(company._id)
-            },
+            { company: companyData },
             "Company registration successful"
         )
     );
 });
+
+
 
 //company login
 const loginCompany = asyncHandler(async (req, res) => {

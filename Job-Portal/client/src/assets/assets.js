@@ -82,7 +82,9 @@ export const JobCategories = [
     "Cybersecurity",
     "Full stack developer",
     "Frontend developer",
-    "Backen developer"
+    "Backen developer",
+    " DevOps",
+    "UI/UX Designer"
 ]
 
 export const JobLocations = [
@@ -92,7 +94,11 @@ export const JobLocations = [
     "Mumbai",
     "California",
     "Chennai",
-    "New York"
+    "New York",
+    "Guwahati",
+    "Delhi",
+    "Kolkata"
+
 ]
 
 // Sample data for Manage Jobs Page
