@@ -3,43 +3,48 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
-import Loading from '../components/Loading ';
+import Loading from "../components/Loading ";
 
-const Viewapplications = () => {
+const ViewApplications = () => {
   const { backendUrl, companyToken } = useContext(AppContext);
-  const [applicants, setApplicants] = useState(false);
+  const [applicants, setApplicants] = useState(null);
 
+  // Fetch all applications
   const fetchCompanyJobApplications = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/v1/company/applicants`, {
         headers: { Authorization: `Bearer ${companyToken}` },
       });
 
-      const applications = data?.data?.applications || [];
-      if (data.success) {
-        setApplicants(applications.reverse());
+      if (data?.success) {
+        const applications = data?.data?.applications || [];
+        setApplicants([...applications].reverse());
       } else {
         toast.info("No applicants found.");
         setApplicants([]);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message);
+      setApplicants([]);
     }
   };
 
+  // Update application status
   const updateApplicationStatus = async (applicationId, status) => {
+    if (!applicationId || !status) return;
+
     try {
-      if (!applicationId || !status) return;
+      const { data } = await axios.post(
+        `${backendUrl}/api/v1/company/change-status`,
+        { applicationId, status },
+        { headers: { Authorization: `Bearer ${companyToken}` } }
+      );
 
-      const { data } = await axios.post(`${backendUrl}/api/v1/company/change-status`, { applicationId, status }, {
-        headers: { Authorization: `Bearer ${companyToken}` },
-      });
-
-      if (data.success) {
-        toast.success(data.message);
+      if (data?.success) {
+        toast.success(data.message || "Status updated");
         fetchCompanyJobApplications();
       } else {
-        toast.error(data.message);
+        toast.error(data.message || "Failed to update status");
       }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message);
@@ -50,93 +55,207 @@ const Viewapplications = () => {
     if (companyToken) fetchCompanyJobApplications();
   }, [companyToken]);
 
-  if (applicants === false) return <Loading />;
+  if (applicants === null) return <Loading />;
 
   if (applicants.length === 0)
     return (
-      <div  className="flex items-center justify-center h-[70vh]">
-       <p className="text-xl sm:text-2xl">No Applications Available  </p>
-       </div>
+      <div className="flex items-center justify-center h-[70vh]">
+        <p className="text-lg sm:text-2xl text-gray-600">No Applications Available</p>
+      </div>
     );
 
+  const getStatus = (applicant) =>
+    applicant?.status || applicant?.applicationStatus || "pending";
+
   return (
-    <div className="container mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4">
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200 divide-y divide-gray-200 rounded-lg shadow-sm">
-          <thead className="bg-gray-50">
+    <div className="container mx-auto px-3 sm:px-6 md:px-8 py-4">
+      {/* --- Desktop / Tablet View --- */}
+      <div className="hidden sm:block overflow-x-auto shadow rounded-lg border border-gray-200 bg-white">
+        <table className="min-w-full text-sm sm:text-base text-left border-collapse">
+          <thead className="bg-gray-100 text-gray-700 font-semibold">
             <tr>
-              <th className="py-2 px-3 text-left text-gray-600 font-semibold">#</th>
-              <th className="py-2 px-3 text-left text-gray-600 font-semibold">User</th>
-              <th className="py-2 px-3 text-left text-gray-600 font-semibold hidden sm:table-cell">Job Title</th>
-              <th className="py-2 px-3 text-left text-gray-600 font-semibold hidden sm:table-cell">Location</th>
-              <th className="py-2 px-3 text-left text-gray-600 font-semibold">Resume</th>
-              <th className="py-2 px-3 text-left text-gray-600 font-semibold">Action</th>
+              <th className="py-3 px-4">#</th>
+              <th className="py-3 px-4">User</th>
+              <th className="py-3 px-4 hidden sm:table-cell">Job Title</th>
+              <th className="py-3 px-4 hidden md:table-cell">Location</th>
+              <th className="py-3 px-4 text-center">Resume</th>
+              <th className="py-3 px-4 text-center">Action</th>
             </tr>
           </thead>
 
-          <tbody className="bg-white divide-y divide-gray-200">
-            {applicants.filter(item => item.jobId && item.userId).map((applicant, index) => (
-              <tr key={index} className="hover:bg-gray-50 transition">
-                <td className="py-2 px-3 text-center">{index + 1}</td>
+          <tbody className="divide-y divide-gray-200">
+            {applicants
+              .filter((a) => a.jobId && a.userId)
+              .map((applicant, index) => {
+                const status = getStatus(applicant);
+                return (
+                  <tr key={applicant._id || index} className="hover:bg-gray-50 transition">
+                    <td className="py-3 px-4 text-center text-gray-600">{index + 1}</td>
 
-                {/* User Info */}
-                <td className="py-2 px-3 flex items-center">
-                  <img className="w-10 h-10 rounded-full mr-3 hidden sm:block" src={applicant.userId.image} alt={applicant.userId.name} />
-                  <span className="text-gray-700 text-sm sm:text-base">{applicant.userId.name}</span>
-                </td>
+                    <td className="py-3 px-4 flex items-center">
+                      <img
+                        src={applicant.userId.image || assets.defaultAvatar}
+                        alt={applicant.userId.name}
+                        className="w-9 h-9 rounded-full mr-3 object-cover"
+                      />
+                      <span className="text-gray-700">{applicant.userId.name}</span>
+                    </td>
 
-                {/* Job Info */}
-                <td className="py-2 px-3 hidden sm:table-cell">{applicant.jobId.title}</td>
-                <td className="py-2 px-3 hidden sm:table-cell">{applicant.jobId.location}</td>
+                    <td className="py-3 px-4 hidden sm:table-cell text-gray-700">
+                      {applicant.jobId.title}
+                    </td>
 
-                {/* Resume */}
-                <td className="py-2 px-3 text-center">
+                    <td className="py-3 px-4 hidden md:table-cell text-gray-700">
+                      {applicant.jobId.location}
+                    </td>
+
+                    <td className="py-3 px-4 text-center">
+                      {applicant.userId.resume ? (
+                        <a
+                          href={applicant.userId.resume}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-full hover:bg-blue-100 transition"
+                        >
+                          <img
+                            src={assets.resume_download_icon}
+                            alt="Download"
+                            className="w-4 h-4 sm:w-5 sm:h-5"
+                          />
+                          <span>Resume</span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 italic">No Resume</span>
+                      )}
+                    </td>
+
+                    <td className="py-3 px-4 text-center">
+                      {status.toLowerCase() === "pending" ? (
+                        <div className="inline-flex gap-2">
+                          <button
+                            onClick={() =>
+                              updateApplicationStatus(applicant._id, "Accepted")
+                            }
+                            className="text-green-600 font-medium hover:underline"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() =>
+                              updateApplicationStatus(applicant._id, "Rejected")
+                            }
+                            className="text-red-500 font-medium hover:underline"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          className={`capitalize font-medium ${
+                            status === "Accepted"
+                              ? "text-green-600"
+                              : status === "Rejected"
+                              ? "text-red-500"
+                              : "text-gray-600"
+                          }`}
+                        >
+                          {status}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* --- Mobile View --- */}
+      <div className="sm:hidden mt-6 space-y-4">
+        {applicants
+          .filter((a) => a.jobId && a.userId)
+          .map((applicant, index) => {
+            const status = getStatus(applicant);
+            return (
+              <div
+                key={index}
+                className="p-4 border rounded-lg shadow-sm bg-white space-y-3"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={applicant.userId.image || assets.defaultAvatar}
+                    alt={applicant.userId.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-800">
+                      {applicant.userId.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {applicant.jobId.title}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-600">
+                  📍 {applicant.jobId.location}
+                </p>
+
+                <div className="flex justify-between items-center pt-2">
                   {applicant.userId.resume ? (
                     <a
                       href={applicant.userId.resume}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 transition"
+                      className="text-blue-600 underline text-sm"
                     >
-                      <img src={assets.resume_download_icon} alt="Download" className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="text-sm sm:text-base">Resume</span>
+                      View Resume
                     </a>
                   ) : (
-                    <span className="text-gray-400 italic text-sm sm:text-base">No Resume</span>
+                    <span className="text-gray-400 italic text-sm">
+                      No Resume
+                    </span>
                   )}
-                </td>
 
-                {/* Actions */}
-                <td className="py-2 px-3 relative">
-                  {applicant.status === 'pending' ? (
-                    <div className="relative inline-block group">
-                      <button className="text-gray-500 px-2 py-1 rounded hover:bg-gray-100">...</button>
-                      <div className="z-10 hidden absolute right-0 sm:left-0 top-0 mt-2 w-28 sm:w-32 bg-white border border-gray-200 rounded shadow group-hover:block">
-                        <button
-                          onClick={() => updateApplicationStatus(applicant._id, "Accepted")}
-                          className="block w-full text-left px-4 py-2 text-blue-500 hover:bg-gray-100"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => updateApplicationStatus(applicant._id, "Rejected")}
-                          className="block w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100"
-                        >
-                          Reject
-                        </button>
-                      </div>
+                  {status.toLowerCase() === "pending" ? (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() =>
+                          updateApplicationStatus(applicant._id, "Accepted")
+                        }
+                        className="text-green-600 text-sm font-medium"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() =>
+                          updateApplicationStatus(applicant._id, "Rejected")
+                        }
+                        className="text-red-500 text-sm font-medium"
+                      >
+                        Reject
+                      </button>
                     </div>
                   ) : (
-                    <span className="text-sm sm:text-base capitalize">{applicant.status}</span>
+                    <span
+                      className={`capitalize text-sm font-medium ${
+                        status === "Accepted"
+                          ? "text-green-600"
+                          : status === "Rejected"
+                          ? "text-red-500"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      {status}
+                    </span>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );
 };
 
-export default Viewapplications;
+export default ViewApplications;

@@ -27,7 +27,7 @@ const ManageJobs = () => {
       });
 
       if (data.success) {
-        console.log("📦 API Response:", data);
+       // console.log("📦 API Response:", data);
         const jobList = data?.data?.jobsData || []; // ✅ fixed structure
         setJobs([...jobList].reverse());
       } else {

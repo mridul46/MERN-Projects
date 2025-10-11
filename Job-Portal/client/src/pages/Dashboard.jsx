@@ -2,19 +2,17 @@ import React, { useContext, useEffect, useState, useRef } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
+import { Menu, X } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    companyData,
-    setCompanyData,
-    companyToken,
-    setCompanyToken,
-  } = useContext(AppContext);
+  const { companyData, setCompanyData, companyToken, setCompanyToken } =
+    useContext(AppContext);
 
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   // --- Logout function ---
@@ -37,7 +35,7 @@ const Dashboard = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- Redirect if not logged in or to default nested route ---
+  // --- Redirect if not logged in ---
   useEffect(() => {
     if (!companyToken) {
       setLoading(false);
@@ -58,24 +56,36 @@ const Dashboard = () => {
     );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Navbar */}
-      <div className="shadow py-4 bg-white">
-        <div className="px-5 flex justify-between items-center">
-          <img
-            onClick={() => navigate("/")}
-            className="max-sm:w-32 cursor-pointer"
-            src={assets.logo}
-            alt="Logo"
-          />
+      <div className="shadow py-3 bg-white w-full sticky top-0 z-50">
+        <div className="px-4 sm:px-6 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            {/* Sidebar toggle button for mobile */}
+            <button
+              className="sm:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-full"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            >
+              {isSidebarOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+
+            <img
+              onClick={() => navigate("/")}
+              className="w-28 sm:w-40 cursor-pointer"
+              src={assets.logo}
+              alt="Logo"
+            />
+          </div>
+
+          {/* Profile / Dropdown */}
           {companyData ? (
             <div className="flex items-center gap-3">
-              <p className="max-sm:hidden text-gray-700">
+              <p className="hidden sm:block text-gray-700">
                 Welcome, {companyData.name}
               </p>
               <div className="relative" ref={dropdownRef}>
                 <img
-                  className="w-10 h-10 border rounded-full cursor-pointer object-cover hover:opacity-80 transition"
+                  className="w-9 h-9 border rounded-full cursor-pointer object-cover hover:opacity-80 transition"
                   src={companyData.image || assets.defaultAvatar}
                   alt="Company Avatar"
                   onClick={() => setIsDropdownOpen((prev) => !prev)}
@@ -100,46 +110,49 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Sidebar + Content */}
-      <div className="flex items-start">
+      {/* Main Section */}
+      <div className="flex flex-1">
         {/* Sidebar */}
-        <div className="inline-block min-h-screen border-r-2 bg-white shadow-sm">
-          <ul className="flex flex-col items-start pt-5 text-gray-800">
-            <NavLink
-              className={({ isActive }) =>
-                `flex items-center p-3 sm:px-6 gap-2 w-full hover:bg-gray-100 transition ${
-                  isActive ? "bg-blue-100 border-r-4 border-blue-500 text-blue-600" : ""
-                }`
-              }
-              to="add-job"
-            >
-              <span className="text-sm sm:text-base whitespace-nowrap">Add Job</span>
-            </NavLink>
-            <NavLink
-              className={({ isActive }) =>
-                `flex items-center p-3 sm:px-6 gap-2 w-full hover:bg-gray-100 transition ${
-                  isActive ? "bg-blue-100 border-r-4 border-blue-500 text-blue-600" : ""
-                }`
-              }
-              to="manage-jobs"
-            >
-              <span className="text-sm sm:text-base whitespace-nowrap">Manage Jobs</span>
-            </NavLink>
-            <NavLink
-              className={({ isActive }) =>
-                `flex items-center p-3 sm:px-6 gap-2 w-full hover:bg-gray-100 transition ${
-                  isActive ? "bg-blue-100 border-r-4 border-blue-500 text-blue-600" : ""
-                }`
-              }
-              to="view-applications"
-            >
-              <span className="text-sm sm:text-base whitespace-nowrap">View Applications</span>
-            </NavLink>
+        <div
+          className={`fixed sm:static top-0 left-0 h-full sm:h-auto bg-white border-r-2 shadow-md sm:shadow-sm transform transition-transform duration-300 ease-in-out z-40 sm:z-auto 
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full sm:translate-x-0"}`}
+        >
+          <ul className="flex flex-col items-start pt-16 sm:pt-5 text-gray-800 w-56 sm:w-60">
+            {[
+              { to: "add-job", label: "Add Job" },
+              { to: "manage-jobs", label: "Manage Jobs" },
+              { to: "view-applications", label: "View Applications" },
+            ].map((item) => (
+              <NavLink
+                key={item.to}
+                className={({ isActive }) =>
+                  `flex items-center p-3 sm:px-6 gap-2 w-full hover:bg-gray-100 transition ${
+                    isActive
+                      ? "bg-blue-100 border-r-4 border-blue-500 text-blue-600"
+                      : ""
+                  }`
+                }
+                to={item.to}
+                onClick={() => setIsSidebarOpen(false)} // auto close on mobile
+              >
+                <span className="text-sm sm:text-base whitespace-nowrap">
+                  {item.label}
+                </span>
+              </NavLink>
+            ))}
           </ul>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 p-4 overflow-auto">
+        {/* Overlay for mobile when sidebar is open */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-40 sm:hidden z-30"
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1 p-4 sm:p-6 overflow-auto mt-14 sm:mt-0">
           <Outlet />
         </div>
       </div>
@@ -148,4 +161,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
